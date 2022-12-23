@@ -3,7 +3,7 @@
   :url "https://github.com/sonyahon/rdk-clj"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v10.html"} 
-  :dependencies []
+  :dependencies [[com.evocomputing/colors "1.0.6"]]
   :resource-paths []
   :plugins [[lein-cloverage "1.0.13"]
             [lein-shell "0.5.0"]
