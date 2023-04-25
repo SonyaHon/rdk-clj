@@ -147,7 +147,7 @@
          {font-width :width font-height :height} (calculate-font-size font)
          panel (doto (proxy [JPanel] []
                        (paintComponent [gfx]
-                         (proxy-super paintComponent gfx)
+                         #_(proxy-super paintComponent gfx)
                          (let [gfx (.create gfx)]
                            (.setFont gfx font)
                            (doseq [[idx chars] (map-indexed vector @canvas-state)]
@@ -172,7 +172,9 @@
 (defn render*
   "Re-renders current state"
   []
-  (.repaint (:panel @window)))
+  (javax.swing.SwingUtilities/invokeLater (proxy [Runnable] []
+                                            (run []
+                                              (.repaint (:panel @window))))))
 
 #_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn set-bg-color*
@@ -271,3 +273,6 @@
      (swap! canvas-state
             #(apply assoc % changes))
      nil)))
+
+(defn get-panel []
+  (:panel @window))

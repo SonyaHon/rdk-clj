@@ -6,10 +6,27 @@
 (s/def ::entity-or-id (s/or :eid ::eid
                             :entity ::entity))
 
+;; Utility functions
+(defn entity?
+  "Checks if object is an entity"
+  [obj]
+  (::entity (meta obj)))
+
+(defn has
+  "Checks if entity has passed components"
+  [entity & components]
+  (every? entity components))
+
+(defn has-not
+  "Checks if entity does not have passed components"
+  [entity & components]
+  (every? #(not (entity %)) components))
+
 (defn- make-world
   "Creates a new empty world"
   []
   {:data {}
+   :resources {}
    :systems []})
 (def ^:private -world (atom (make-world)))
 
@@ -23,7 +40,6 @@
     entity))
 
 (defn- destroy-marked [entities]
-  (println "Entities: " entities "\nTo destroy: " (:to-destroy @-mut-state))
   (into {} (filter (fn [[id _]]
                      (not ((:to-destroy @-mut-state) id)))
                    entities)))
@@ -61,7 +77,6 @@
   (loop [sections sections
          world-after world]
     (let [section (first sections)]
-
       (if (nil? section)
         (let [result (assoc world-after :data (-> (:data world-after)
                                                   (destroy-marked)
@@ -85,6 +100,32 @@
                      (assoc world-after
                             :data changed-entities))
                    world-after)))))))
+
+(defn get-resource [resource]
+  (resource (:resources @-world)))
+
+(defn set-resource* [resource value]
+  (swap! -world assoc-in [:resources resource] value))
+
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(defn query
+  "Queries world for entities that conform to specified rules.
+   Accepts syntax simmilar to hiccup
+   [:with ::component-a ::component-b] <- only entities that have both ::component-a and ::component-b will be queried
+   [:without ::component-c] <- only entities that do not have ::component-c will be queried"
+  [& rules]
+  (let [with-rules (->> rules
+                        (filter #(= :with (first %)))
+                        (map #(into [] (rest %)))
+                        (apply concat))
+        without-rules (->> rules
+                           (filter #(= :without (first %)))
+                           (map #(into [] (rest %)))
+                           (apply concat))
+        entities (vals (:data @-world))]
+    (into [] (filter (fn [entity]
+                       (and (apply has entity with-rules)
+                            (apply has-not entity without-rules))) entities))))
 
 ;; Direct state manipulation
 (defn reset-world*
@@ -135,42 +176,6 @@
   "Applies systems of the world to it's current data."
   []
   (reset! -world (apply-sections (:systems @-world) @-world)))
-
-;; Utility functions
-(defn entity?
-  "Checks if object is an entity"
-  [obj]
-  (::entity (meta obj)))
-
-(defn has
-  "Checks if entity has passed components"
-  [entity & components]
-  (every? entity components))
-
-(defn has-not
-  "Checks if entity does not have passed components"
-  [entity & components]
-  (every? #(not (entity %)) components))
-
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
-(defn query
-  "Queries world for entities that conform to specified rules.
-   Accepts syntax simmilar to hiccup
-   [:with ::component-a ::component-b] <- only entities that have both ::component-a and ::component-b will be queried
-   [:without ::component-c] <- only entities that do not have ::component-c will be queried"
-  [& rules]
-  (let [with-rules (->> rules
-                        (filter #(= :with (first %)))
-                        (map #(into [] (rest %)))
-                        (apply concat))
-        without-rules (->> rules
-                           (filter #(= :without (first %)))
-                           (map #(into [] (rest %)))
-                           (apply concat))
-        entities (vals (:data @-world))]
-    (into [] (filter (fn [entity]
-                       (and (apply has entity with-rules)
-                            (apply has-not entity without-rules))) entities))))
 
 ;; Internal system functions
 
